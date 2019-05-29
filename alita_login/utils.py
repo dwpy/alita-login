@@ -352,7 +352,7 @@ def _create_identifier(request):
     return h.hexdigest()
 
 
-def _user_context_processor(request):
+async def _user_context_processor(request):
     return dict(current_user=_get_user(request))
 
 

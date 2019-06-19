@@ -9,6 +9,7 @@
     :license: BSD, see LICENSE for more details.
 """
 import os
+import sys
 import hmac
 import hashlib
 import posixpath
@@ -17,9 +18,6 @@ from struct import Struct
 from random import SystemRandom
 from operator import xor
 from itertools import starmap
-
-from werkzeug._compat import izip, to_bytes, \
-    string_types, to_native
 
 
 SALT_CHARS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
@@ -33,6 +31,22 @@ _os_alt_seps = list(sep for sep in [os.path.sep, os.path.altsep]
                     if sep not in (None, '/'))
 
 
+def to_bytes(x, charset=sys.getdefaultencoding(), errors='strict'):
+    if x is None:
+        return None
+    if isinstance(x, (bytes, bytearray, memoryview)):  # noqa
+        return bytes(x)
+    if isinstance(x, str):
+        return x.encode(charset, errors)
+    raise TypeError('Expected bytes')
+
+
+def to_native(x, charset=sys.getdefaultencoding(), errors='strict'):
+    if x is None or isinstance(x, str):
+        return x
+    return x.decode(charset, errors)
+
+
 def _find_hashlib_algorithms():
     algos = getattr(hashlib, 'algorithms', None)
     if algos is None:
@@ -43,6 +57,8 @@ def _find_hashlib_algorithms():
         if func is not None:
             rv[algo] = func
     return rv
+
+
 _hash_funcs = _find_hashlib_algorithms()
 
 
@@ -86,7 +102,7 @@ def pbkdf2_bin(data, salt, iterations=DEFAULT_PBKDF2_ITERATIONS,
                      string name of a known hash function or a function
                      from the hashlib module.  Defaults to sha256.
     """
-    if isinstance(hashfunc, string_types):
+    if isinstance(hashfunc, str):
         hashfunc = _hash_funcs[hashfunc]
     elif not hashfunc:
         hashfunc = hashlib.sha256
@@ -116,7 +132,7 @@ def pbkdf2_bin(data, salt, iterations=DEFAULT_PBKDF2_ITERATIONS,
         rv = u = _pseudorandom(salt + _pack_int(block))
         for i in range(iterations - 1):
             u = _pseudorandom(bytes(u))
-            rv = bytearray(starmap(xor, izip(rv, u)))
+            rv = bytearray(starmap(xor, zip(rv, u)))
         buf.extend(rv)
     return bytes(buf[:keylen])
 
@@ -141,7 +157,7 @@ def safe_str_cmp(a, b):
         return False
 
     rv = 0
-    for x, y in izip(a, b):
+    for x, y in zip(a, b):
         rv |= x ^ y
 
     return rv == 0
